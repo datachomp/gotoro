@@ -28,6 +28,22 @@ func connectionCounter(db *sql.DB) *ConnectionState {
 	return &c
 }
 
+func cachehitCounter(db *sql.DB) float32 {
+	var cache_hit float32
+	db.QueryRow("SELECT round(sum(heap_blks_hit) / (sum(heap_blks_hit) + sum(heap_blks_read)), 4) as ratio FROM pg_statio_user_tables;").Scan(&cache_hit)
+	return cache_hit
+}
+func indexhitCounter(db *sql.DB) float32 {
+	var index_hit float32
+	db.QueryRow("SELECT round(sum(idx_blks_hit) / sum(idx_blks_hit + idx_blks_read), 4) as ratio FROM pg_statio_user_indexes;").Scan(&index_hit)
+	return index_hit
+}
+func missingindexCounter(db *sql.DB) int {
+	var missing int
+	db.QueryRow("SELECT COALESCE(sum(case when seq_scan-idx_scan > 0 THEN 1 ELSE 0 END),0) as counter FROM pg_stat_all_tables WHERE schemaname='public' AND pg_relation_size(relname::regclass) > 80000;").Scan(&missing)
+	return missing
+}
+
 // DB HELPERs
 func dbConnect() *sql.DB {
 	conn, err := sql.Open("postgres", "user=rob dbname=rob sslmode=disable")
